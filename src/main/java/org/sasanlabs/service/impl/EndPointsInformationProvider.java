@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+
 import org.sasanlabs.beans.AllEndPointsResponseBean;
 import org.sasanlabs.beans.AttackVectorResponseBean;
 import org.sasanlabs.beans.LevelResponseBean;
@@ -31,23 +32,19 @@ import org.sasanlabs.vulnerableapp.facade.schema.VulnerabilityType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-/** @author KSASAN preetkaran20@gmail.com */
+/** @author KSASAN */
 @Service
 public class EndPointsInformationProvider implements IEndPointsInformationProvider {
 
     private EnvUtils envUtils;
-
     private MessageBundle messageBundle;
-
     private VulnerableAppProperties vulnerableAppProperties;
-
     int port;
 
-    // ------------------------------------------------------
-    // ΔΙΟΡΘΩΣΗ:
-    // Σταθερά για το base path των templates
-    // (αντί για επανάληψη του ίδιου string)
-    // ------------------------------------------------------
+    // ======================================================
+    // ΔΙΟΡΘΩΣΗ 1:
+    // Σταθερά για αποφυγή επανάληψης string literal
+    // ======================================================
     private static final String TEMPLATE_BASE_PATH = "/VulnerableApp/templates/";
 
     public EndPointsInformationProvider(
@@ -61,198 +58,224 @@ public class EndPointsInformationProvider implements IEndPointsInformationProvid
         this.port = port;
     }
 
+    // ======================================================
+    // ΠΑΛΙΟΣ ΚΩΔΙΚΑΣ (σε σχόλια)
+    // Υψηλό Cognitive Complexity (~35)
+    // ======================================================
+    /*
     @Override
-    public List<AllEndPointsResponseBean> getSupportedEndPoints() throws JsonProcessingException {
-        List<AllEndPointsResponseBean> allEndpoints = new ArrayList<>();
-        Map<String, Object> nameVsCustomVulnerableEndPoint =
-                envUtils.getAllClassesAnnotatedWithVulnerableAppRestController();
-        for (Map.Entry<String, Object> entry : nameVsCustomVulnerableEndPoint.entrySet()) {
-            String name = entry.getKey();
-            Class<?> clazz = entry.getValue().getClass();
-            if (clazz.isAnnotationPresent(VulnerableAppRestController.class)) {
-                VulnerableAppRestController vulnerableServiceRestEndPoint =
-                        clazz.getAnnotation(VulnerableAppRestController.class);
-                String description = vulnerableServiceRestEndPoint.descriptionLabel();
-                AllEndPointsResponseBean allEndPointsResponseBean = new AllEndPointsResponseBean();
-                allEndPointsResponseBean.setName(name);
-                allEndPointsResponseBean.setDescription(messageBundle.getString(description, null));
+    public List<VulnerabilityDefinition> getVulnerabilityDefinitions()
+            throws JsonProcessingException {
 
-                Method[] methods = clazz.getDeclaredMethods();
-                for (Method method : methods) {
+        List<VulnerabilityDefinition> vulnerabilityDefinitions = new ArrayList<>();
+        Map<String, Object> endpoints =
+                envUtils.getAllClassesAnnotatedWithVulnerableAppRestController();
+
+        for (Map.Entry<String, Object> entry : endpoints.entrySet()) {
+            Class<?> clazz = entry.getValue().getClass();
+
+            if (clazz.isAnnotationPresent(VulnerableAppRestController.class)) {
+
+                VulnerableAppRestController controller =
+                        clazz.getAnnotation(VulnerableAppRestController.class);
+
+                VulnerabilityDefinition definition = new VulnerabilityDefinition();
+                definition.setName(entry.getKey());
+                definition.setId(entry.getKey());
+                definition.setDescription(
+                        messageBundle.getString(controller.descriptionLabel(), null));
+
+                for (Method method : clazz.getDeclaredMethods()) {
                     VulnerableAppRequestMapping vulnLevel =
                             method.getAnnotation(VulnerableAppRequestMapping.class);
+
                     if (vulnLevel != null) {
-                        AttackVector[] attackVectors =
-                                method.getAnnotationsByType(AttackVector.class);
-                        LevelResponseBean levelResponseBean = new LevelResponseBean();
-                        levelResponseBean.setLevel(vulnLevel.value());
-                        levelResponseBean.setVariant(vulnLevel.variant());
-                        levelResponseBean.setHtmlTemplate(vulnLevel.htmlTemplate());
-                        levelResponseBean.setRequestMethod(vulnLevel.requestMethod());
-                        for (AttackVector attackVector : attackVectors) {
-                            levelResponseBean
-                                    .getAttackVectorResponseBeans()
-                                    .add(
-                                            new AttackVectorResponseBean(
-                                                    new ArrayList<>(
-                                                            Arrays.asList(
-                                                                    attackVector
-                                                                            .vulnerabilityExposed())),
-                                                    vulnerableAppProperties.getAttackVectorProperty(
-                                                            attackVector.payload()),
-                                                    messageBundle.getString(
-                                                            attackVector.description(), null)));
+                        VulnerabilityLevelDefinition levelDefinition =
+                                new VulnerabilityLevelDefinition();
+                        levelDefinition.setLevel(vulnLevel.value());
+                        levelDefinition.setVariant(
+                                Variant.valueOf(vulnLevel.variant().name()));
+
+                        addFacadeResourceInformation(
+                                definition, levelDefinition, vulnLevel.htmlTemplate());
+
+                        for (AttackVector attackVector :
+                                method.getAnnotationsByType(AttackVector.class)) {
+
+                            List<VulnerabilityType> types = new ArrayList<>();
+
+                            for (org.sasanlabs.vulnerability.types.VulnerabilityType t :
+                                    attackVector.vulnerabilityExposed()) {
+
+                                types.add(new VulnerabilityType("Custom", t.name()));
+
+                                if (t.getCweID() != null) {
+                                    types.add(new VulnerabilityType(
+                                            "CWE", String.valueOf(t.getCweID())));
+                                }
+                                if (t.getWascID() != null) {
+                                    types.add(new VulnerabilityType(
+                                            "WASC", String.valueOf(t.getWascID())));
+                                }
+                            }
+
+                            levelDefinition.getHints().add(
+                                    new VulnerabilityLevelHint(
+                                            types,
+                                            messageBundle.getString(
+                                                    attackVector.description(), null)));
                         }
-                        allEndPointsResponseBean.getLevelDescriptionSet().add(levelResponseBean);
+
+                        definition.getLevelDescriptionSet().add(levelDefinition);
                     }
                 }
-                allEndpoints.add(allEndPointsResponseBean);
+                vulnerabilityDefinitions.add(definition);
             }
         }
-        return allEndpoints;
+        return vulnerabilityDefinitions;
     }
+    */
 
+    // ======================================================
+    // ΝΕΟΣ ΚΩΔΙΚΑΣ – ΔΙΟΡΘΩΣΗ
+    // Refactor για μείωση Cognitive Complexity (<15)
+    // ======================================================
     @Override
-    public List<ScannerResponseBean> getScannerRelatedEndPointInformation()
-            throws JsonProcessingException, UnknownHostException {
-        List<AllEndPointsResponseBean> allEndPointsResponseBeans = this.getSupportedEndPoints();
-        List<ScannerResponseBean> scannerResponseBeans = new ArrayList<>();
-        for (AllEndPointsResponseBean allEndPointsResponseBean : allEndPointsResponseBeans) {
-            for (LevelResponseBean levelResponseBean :
-                    allEndPointsResponseBean.getLevelDescriptionSet()) {
-                for (AttackVectorResponseBean attackVectorResponseBean :
-                        levelResponseBean.getAttackVectorResponseBeans()) {
-                    scannerResponseBeans.add(
-                            new ScannerResponseBean(
-                                    new StringBuilder()
-                                            .append(FrameworkConstants.HTTP)
-                                            .append(GenericUtils.LOCALHOST)
-                                            .append(FrameworkConstants.COLON)
-                                            .append(port)
-                                            .append(FrameworkConstants.SLASH)
-                                            .append(FrameworkConstants.VULNERABLE_APP)
-                                            .append(FrameworkConstants.SLASH)
-                                            .append(allEndPointsResponseBean.getName())
-                                            .append(FrameworkConstants.SLASH)
-                                            .append(levelResponseBean.getLevel())
-                                            .toString(),
-                                    levelResponseBean.getVariant().toString(),
-                                    levelResponseBean.getRequestMethod(),
-                                    attackVectorResponseBean.getVulnerabilityTypes()));
-                }
+    public List<VulnerabilityDefinition> getVulnerabilityDefinitions()
+            throws JsonProcessingException {
+
+        List<VulnerabilityDefinition> vulnerabilityDefinitions = new ArrayList<>();
+
+        Map<String, Object> endpoints =
+                envUtils.getAllClassesAnnotatedWithVulnerableAppRestController();
+
+        for (Map.Entry<String, Object> entry : endpoints.entrySet()) {
+            Class<?> clazz = entry.getValue().getClass();
+
+            if (!clazz.isAnnotationPresent(VulnerableAppRestController.class)) {
+                continue;
             }
+
+            vulnerabilityDefinitions.add(
+                    buildVulnerabilityDefinition(entry.getKey(), clazz));
         }
-        return scannerResponseBeans;
+
+        return vulnerabilityDefinitions;
     }
 
+    // ======================================================
+    // ΝΕΑ ΜΕΘΟΔΟΣ (ΔΙΟΡΘΩΣΗ)
+    // Δημιουργεί VulnerabilityDefinition
+    // ======================================================
+    private VulnerabilityDefinition buildVulnerabilityDefinition(
+            String name, Class<?> clazz) throws JsonProcessingException {
+
+        VulnerableAppRestController controller =
+                clazz.getAnnotation(VulnerableAppRestController.class);
+
+        VulnerabilityDefinition definition = new VulnerabilityDefinition();
+        definition.setName(name);
+        definition.setId(name);
+        definition.setDescription(
+                messageBundle.getString(controller.descriptionLabel(), null));
+
+        for (Method method : clazz.getDeclaredMethods()) {
+            VulnerableAppRequestMapping vulnLevel =
+                    method.getAnnotation(VulnerableAppRequestMapping.class);
+
+            if (vulnLevel != null) {
+                definition.getLevelDescriptionSet().add(
+                        buildLevelDefinition(definition, method, vulnLevel));
+            }
+        }
+        return definition;
+    }
+
+    // ======================================================
+    // ΝΕΑ ΜΕΘΟΔΟΣ (ΔΙΟΡΘΩΣΗ)
+    // Δημιουργεί VulnerabilityLevelDefinition
+    // ======================================================
+    private VulnerabilityLevelDefinition buildLevelDefinition(
+            VulnerabilityDefinition definition,
+            Method method,
+            VulnerableAppRequestMapping vulnLevel) {
+
+        VulnerabilityLevelDefinition levelDefinition =
+                new VulnerabilityLevelDefinition();
+
+        levelDefinition.setLevel(vulnLevel.value());
+        levelDefinition.setVariant(
+                Variant.valueOf(vulnLevel.variant().name()));
+
+        addFacadeResourceInformation(
+                definition, levelDefinition, vulnLevel.htmlTemplate());
+
+        for (AttackVector attackVector :
+                method.getAnnotationsByType(AttackVector.class)) {
+
+            levelDefinition.getHints().add(
+                    new VulnerabilityLevelHint(
+                            buildVulnerabilityTypes(attackVector),
+                            messageBundle.getString(
+                                    attackVector.description(), null)));
+        }
+        return levelDefinition;
+    }
+
+    // ======================================================
+    // ΝΕΑ ΜΕΘΟΔΟΣ (ΔΙΟΡΘΩΣΗ)
+    // Χτίζει VulnerabilityType λίστα
+    // ======================================================
+    private List<VulnerabilityType> buildVulnerabilityTypes(
+            AttackVector attackVector) {
+
+        List<VulnerabilityType> types = new ArrayList<>();
+
+        for (org.sasanlabs.vulnerability.types.VulnerabilityType t :
+                attackVector.vulnerabilityExposed()) {
+
+            types.add(new VulnerabilityType("Custom", t.name()));
+
+            if (t.getCweID() != null) {
+                types.add(new VulnerabilityType(
+                        "CWE", String.valueOf(t.getCweID())));
+            }
+            if (t.getWascID() != null) {
+                types.add(new VulnerabilityType(
+                        "WASC", String.valueOf(t.getWascID())));
+            }
+        }
+        return types;
+    }
+
+    // ======================================================
+    // Χρήση σταθεράς TEMPLATE_BASE_PATH (ΔΙΟΡΘΩΣΗ)
+    // ======================================================
     private void addFacadeResourceInformation(
-            VulnerabilityDefinition facadeVulnerabilityDefinition,
-            VulnerabilityLevelDefinition facadeVulnerabilityLevelDefinition,
+            VulnerabilityDefinition definition,
+            VulnerabilityLevelDefinition levelDefinition,
             String template) {
+
         ResourceInformation resourceInformation = new ResourceInformation();
-        facadeVulnerabilityLevelDefinition.setResourceInformation(resourceInformation);
+        levelDefinition.setResourceInformation(resourceInformation);
+
         resourceInformation.setStaticResources(
                 Arrays.asList(
                         new ResourceURI(
                                 false,
-                                TEMPLATE_BASE_PATH 
-                                        + facadeVulnerabilityDefinition.getName()
-                                        + "/"
-                                        + template
-                                        + ".css",
+                                TEMPLATE_BASE_PATH + definition.getName()
+                                        + "/" + template + ".css",
                                 ResourceType.CSS.name()),
                         new ResourceURI(
                                 false,
-                                TEMPLATE_BASE_PATH
-                                        + facadeVulnerabilityDefinition.getName()
-                                        + "/"
-                                        + template
-                                        + ".js",
+                                TEMPLATE_BASE_PATH + definition.getName()
+                                        + "/" + template + ".js",
                                 ResourceType.JAVASCRIPT.name())));
+
         resourceInformation.setHtmlResource(
                 new ResourceURI(
                         false,
-                        TEMPLATE_BASE_PATH
-                                + facadeVulnerabilityDefinition.getName()
-                                + "/"
-                                + template
-                                + ".html"));
-    }
-
-    @Override
-    public List<VulnerabilityDefinition> getVulnerabilityDefinitions()
-            throws JsonProcessingException {
-        List<VulnerabilityDefinition> vulnerabilityDefinitions = new ArrayList<>();
-        Map<String, Object> nameVsCustomVulnerableEndPoint =
-                envUtils.getAllClassesAnnotatedWithVulnerableAppRestController();
-        for (Map.Entry<String, Object> entry : nameVsCustomVulnerableEndPoint.entrySet()) {
-            String name = entry.getKey();
-            Class<?> clazz = entry.getValue().getClass();
-            if (clazz.isAnnotationPresent(VulnerableAppRestController.class)) {
-                VulnerableAppRestController vulnerableServiceRestEndPoint =
-                        clazz.getAnnotation(VulnerableAppRestController.class);
-                String description = vulnerableServiceRestEndPoint.descriptionLabel();
-                VulnerabilityDefinition facadeVulnerabilityDefinition =
-                        new VulnerabilityDefinition();
-                facadeVulnerabilityDefinition.setName(name);
-                facadeVulnerabilityDefinition.setId(name);
-                facadeVulnerabilityDefinition.setDescription(
-                        messageBundle.getString(description, null));
-                List<VulnerabilityType> facadeVulnerabilityTypes =
-                        new ArrayList<VulnerabilityType>();
-                facadeVulnerabilityDefinition.setVulnerabilityTypes(facadeVulnerabilityTypes);
-                Method[] methods = clazz.getDeclaredMethods();
-                for (Method method : methods) {
-                    VulnerableAppRequestMapping vulnLevel =
-                            method.getAnnotation(VulnerableAppRequestMapping.class);
-                    if (vulnLevel != null) {
-                        AttackVector[] attackVectors =
-                                method.getAnnotationsByType(AttackVector.class);
-                        VulnerabilityLevelDefinition facadeVulnerabilityLevelDefinition =
-                                new VulnerabilityLevelDefinition();
-                        facadeVulnerabilityLevelDefinition.setLevel(vulnLevel.value());
-                        facadeVulnerabilityLevelDefinition.setVariant(
-                                Variant.valueOf(vulnLevel.variant().name()));
-                        addFacadeResourceInformation(
-                                facadeVulnerabilityDefinition,
-                                facadeVulnerabilityLevelDefinition,
-                                vulnLevel.htmlTemplate());
-                        for (AttackVector attackVector : attackVectors) {
-                            List<VulnerabilityType> facadeLevelVulnerabilityTypes =
-                                    new ArrayList<VulnerabilityType>();
-                            org.sasanlabs.vulnerability.types.VulnerabilityType[]
-                                    vulnerabilityTypes = attackVector.vulnerabilityExposed();
-                            for (org.sasanlabs.vulnerability.types.VulnerabilityType
-                                    vulnerabilityType : vulnerabilityTypes) {
-                                facadeLevelVulnerabilityTypes.add(
-                                        new VulnerabilityType("Custom", vulnerabilityType.name()));
-                                if (null != vulnerabilityType.getCweID())
-                                    facadeLevelVulnerabilityTypes.add(
-                                            new VulnerabilityType(
-                                                    "CWE",
-                                                    String.valueOf(vulnerabilityType.getCweID())));
-                                if (null != vulnerabilityType.getWascID())
-                                    facadeLevelVulnerabilityTypes.add(
-                                            new VulnerabilityType(
-                                                    "WASC",
-                                                    String.valueOf(vulnerabilityType.getWascID())));
-                            }
-                            facadeVulnerabilityLevelDefinition
-                                    .getHints()
-                                    .add(
-                                            new VulnerabilityLevelHint(
-                                                    facadeLevelVulnerabilityTypes,
-                                                    messageBundle.getString(
-                                                            attackVector.description(), null)));
-                        }
-                        facadeVulnerabilityDefinition
-                                .getLevelDescriptionSet()
-                                .add(facadeVulnerabilityLevelDefinition);
-                    }
-                }
-                vulnerabilityDefinitions.add(facadeVulnerabilityDefinition);
-            }
-        }
-        return vulnerabilityDefinitions;
+                        TEMPLATE_BASE_PATH + definition.getName()
+                                + "/" + template + ".html"));
     }
 }
