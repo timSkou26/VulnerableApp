@@ -43,6 +43,13 @@ public class EndPointsInformationProvider implements IEndPointsInformationProvid
 
     int port;
 
+    // ------------------------------------------------------
+    // ΔΙΟΡΘΩΣΗ:
+    // Σταθερά για το base path των templates
+    // (αντί για επανάληψη του ίδιου string)
+    // ------------------------------------------------------
+    private static final String TEMPLATE_BASE_PATH = "/VulnerableApp/templates/";
+
     public EndPointsInformationProvider(
             EnvUtils envUtils,
             MessageBundle messageBundle,
@@ -148,7 +155,7 @@ public class EndPointsInformationProvider implements IEndPointsInformationProvid
                 Arrays.asList(
                         new ResourceURI(
                                 false,
-                                "/VulnerableApp/templates/"
+                                TEMPLATE_BASE_PATH 
                                         + facadeVulnerabilityDefinition.getName()
                                         + "/"
                                         + template
@@ -156,7 +163,7 @@ public class EndPointsInformationProvider implements IEndPointsInformationProvid
                                 ResourceType.CSS.name()),
                         new ResourceURI(
                                 false,
-                                "/VulnerableApp/templates/"
+                                TEMPLATE_BASE_PATH
                                         + facadeVulnerabilityDefinition.getName()
                                         + "/"
                                         + template
@@ -165,7 +172,7 @@ public class EndPointsInformationProvider implements IEndPointsInformationProvid
         resourceInformation.setHtmlResource(
                 new ResourceURI(
                         false,
-                        "/VulnerableApp/templates/"
+                        TEMPLATE_BASE_PATH
                                 + facadeVulnerabilityDefinition.getName()
                                 + "/"
                                 + template
