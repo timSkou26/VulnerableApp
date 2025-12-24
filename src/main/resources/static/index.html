@@ -64,7 +64,17 @@
 						<div class="col-6 detail">
 							<button id="backBtn" onclick="back()" class="hidden-md">
 								< Back</button>
-									<h1 class="detail-title text-center"></h1>
+									<!-- ΠΡΟΒΛΗΜΑ: Κενή επικεφαλίδα, δεν είναι προσβάσιμη από screen readers -->
+									<!--<h1 class="detail-title text-center"></h1>-->
+									<!--
+										ΔΙΟΡΘΩΣΗ:
+										Προστέθηκε αρχικό περιεχόμενο ώστε η επικεφαλίδα
+										να είναι προσβάσιμη από screen readers.
+										Το περιεχόμενο μπορεί να αλλάξει δυναμικά με JS.
+										-->
+										<h1 class="detail-title text-center">
+										    Vulnerability Details
+										</h1>
 									<div>
 										<button id="showHelp">Show Help</button>
 										<button id="hideHelp" disabled=true>Hide Help</button>
